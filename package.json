@@ -1,0 +1,13 @@
+{
+  "name": "ai-ebook-system",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node test-db.js"
+  },
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "mongoose": "^6.0.0"
+  }
+}
