@@ -1,16 +1,27 @@
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import dotenv from "dotenv";
-import ebookRoutes from "./routes/ebooks.js";
+const express = require("express");
+const mongoose = require("mongoose");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const ebookRoutes = require("./routes/ebooks.js");
 
 dotenv.config();
 
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+
+// ✅ Ensure Express Parses JSON & Form Data
+app.use(cors()); // Enable CORS
+app.use(express.json()); // Parses application/json
+app.use(express.urlencoded({ extended: true })); // Parses form-urlencoded data
+
+// 📂 Serve ebooks from SanDisk drive
+app.use("/books", express.static("/mnt/sandisk/media/library/"))
+
+// API Routes
+app.use("/api/ebooks", ebookRoutes);
+
+app.get("/", (req, res) => res.send("📚 AI Ebook System API is Running!"));
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/ai-ebook-system";
@@ -25,11 +36,6 @@ const connectToDatabase = async () => {
 };
 
 connectToDatabase();
-
-// Routes
-app.use("/api/ebooks", ebookRoutes);
-
-app.get("/", (req, res) => res.send("📚 AI Ebook System API is Running!"));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running at http://localhost:${PORT}`));
