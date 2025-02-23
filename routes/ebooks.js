@@ -15,9 +15,6 @@ const upload = multer({ storage });
 
 router.post("/", upload.single("file"), async (req, res) => {
     try {
-        console.log("📥 Received Form Data AFTER Multer:", req.body); // ✅ Debugging
-        console.log("📂 Uploaded File:", req.file); // ✅ Access file correctly
-
         if (!req.body.title || !req.body.author) {
             return res.status(400).json({ error: "Missing title or author" });
         }
@@ -33,11 +30,9 @@ router.post("/", upload.single("file"), async (req, res) => {
         const authorFolder = `/mnt/sandisk/media/library/${author}`;
         try {
             await fs.promises.mkdir(authorFolder, { recursive: true });
-            console.log(`📂 Created folder for author: ${authorFolder}`);
 
             const newPath = path.join(authorFolder, `${title}_${author}_${Date.now()}${path.extname(req.file.originalname)}`);
             await fs.promises.writeFile(newPath, req.file.buffer);
-            console.log(`📂 Saved file to: ${newPath}`);
 
             const fileFormat = path.extname(newPath).replace(".", "");
 
@@ -109,7 +104,7 @@ router.delete("/:id", async (req, res) => {
     }
 });
 
-// 📖 Extract text from an EPUB file
+// 📖 Extract text from an EPUB file and store it in MongoDB
 router.get("/:id/extract", async (req, res) => {
     try {
         console.log("📥 Received request to extract text for ID:", req.params.id);
@@ -124,8 +119,11 @@ router.get("/:id/extract", async (req, res) => {
             return res.status(400).json({ error: "Only EPUB files can be processed." });
         }
 
-        // Debugging: Print the expected file path
-        console.log("📂 Expected file path:", ebook.filePath);
+        // If extractedText already exists in MongoDB, return it
+        if (ebook.extractedText) {
+            console.log("📖 Returning cached extracted text from database.");
+            return res.json({ title: ebook.title, author: ebook.author, extractedText: ebook.extractedText });
+        }
 
         // Normalize path to avoid encoding issues
         const filePath = path.resolve(ebook.filePath.trim());
@@ -142,7 +140,9 @@ router.get("/:id/extract", async (req, res) => {
         // Extract text
         console.log("📖 Extracting text from:", filePath);
         const text = await extractTextFromEPUB(filePath);
-        console.log('text', text)
+
+        // Save extracted text in MongoDB
+        await Ebook.findByIdAndUpdate(req.params.id, { extractedText: text });
 
         res.json({ title: ebook.title, author: ebook.author, extractedText: text });
     } catch (error) {
