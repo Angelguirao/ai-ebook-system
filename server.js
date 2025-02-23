@@ -6,6 +6,10 @@ const ebookRoutes = require("./routes/ebooks.js");
 
 dotenv.config();
 
+
+// Set Mongoose strictQuery option
+mongoose.set('strictQuery', true);
+
 const app = express();
 
 // Middleware

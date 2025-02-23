@@ -8,63 +8,58 @@ const { extractTextFromEPUB } = require("../utils/extractText.js");
 const router = express.Router();
 
 // 📂 Configure Multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "/mnt/sandisk/media/library/"); // Save books inside SanDisk
-    },
-    filename: (req, file, cb) => {
-        console.log("📥 Received Form Data Inside Multer:", req.body); // ✅ Debugging
-
-        setTimeout(() => {
-            const title = req.body.title
-                ? req.body.title.replace(/\s+/g, "_").toLowerCase().replace(/[^a-z0-9_]/gi, "")
-                : "untitled";
-
-            const author = req.body.author
-                ? req.body.author.replace(/\s+/g, "_").toLowerCase().replace(/[^a-z0-9_]/gi, "")
-                : "unknown_author";
-
-            const timestamp = Date.now();
-            const ext = path.extname(file.originalname);
-            const simpleFilename = `${title}_${author}_${timestamp}${ext}`;
-
-            console.log("📂 Saving file as:", simpleFilename); // ✅ Debugging
-
-            cb(null, simpleFilename);
-        }, 10); // Small delay to ensure `req.body` is available
-    },
-});
+const storage = multer.memoryStorage(); // Use memory storage to avoid temporary files
 
 // 📚 Upload and Save an Ebook
 const upload = multer({ storage });
 
-router.post("/", upload.fields([{ name: "file", maxCount: 1 }]), async (req, res) => {
+router.post("/", upload.single("file"), async (req, res) => {
     try {
         console.log("📥 Received Form Data AFTER Multer:", req.body); // ✅ Debugging
-        console.log("📂 Uploaded File:", req.files.file[0]); // ✅ Access file correctly
+        console.log("📂 Uploaded File:", req.file); // ✅ Access file correctly
 
         if (!req.body.title || !req.body.author) {
             return res.status(400).json({ error: "Missing title or author" });
         }
 
-        const fileFormat = path.extname(req.files.file[0].filename).replace(".", "");
+        const title = req.body.title
+            ? req.body.title.replace(/\s+/g, "_").toLowerCase().replace(/[^a-z0-9_]/gi, "")
+            : "untitled";
 
-        const newEbook = await Ebook.create({
-            title: req.body.title,
-            author: req.body.author,
-            genre: req.body.genre || "Unknown",
-            language: req.body.language || "Unknown",
-            filePath: req.files.file[0].path.trim(),
-            fileFormat,
-        });
+        const author = req.body.author
+            ? req.body.author.replace(/\s+/g, "_").toLowerCase().replace(/[^a-z0-9_]/gi, "")
+            : "unknown_author";
 
-        res.status(201).json(newEbook);
+        const authorFolder = `/mnt/sandisk/media/library/${author}`;
+        try {
+            await fs.promises.mkdir(authorFolder, { recursive: true });
+            console.log(`📂 Created folder for author: ${authorFolder}`);
+
+            const newPath = path.join(authorFolder, `${title}_${author}_${Date.now()}${path.extname(req.file.originalname)}`);
+            await fs.promises.writeFile(newPath, req.file.buffer);
+            console.log(`📂 Saved file to: ${newPath}`);
+
+            const fileFormat = path.extname(newPath).replace(".", "");
+
+            const newEbook = await Ebook.create({
+                title: req.body.title,
+                author: req.body.author,
+                genre: req.body.genre || "Unknown",
+                language: req.body.language || "Unknown",
+                filePath: newPath.trim(),
+                fileFormat,
+            });
+
+            res.status(201).json(newEbook);
+        } catch (err) {
+            console.error(`❌ Error creating folder or saving file: ${err}`);
+            res.status(500).json({ error: err.message });
+        }
     } catch (err) {
         console.error("❌ Upload Error:", err);
         res.status(500).json({ error: err.message });
     }
 });
-
 
 // 📖 Get All Ebooks (Metadata Only)
 router.get("/", async (req, res) => {
