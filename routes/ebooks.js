@@ -104,7 +104,7 @@ router.delete("/:id", async (req, res) => {
     }
 });
 
-// 📖 Extract text from an EPUB file and store it in MongoDB
+// 📖 Extract text from an EPUB file and save it as a separate text file
 router.get("/:id/extract", async (req, res) => {
     try {
         console.log("📥 Received request to extract text for ID:", req.params.id);
@@ -117,12 +117,6 @@ router.get("/:id/extract", async (req, res) => {
 
         if (ebook.fileFormat !== "epub") {
             return res.status(400).json({ error: "Only EPUB files can be processed." });
-        }
-
-        // If extractedText already exists in MongoDB, return it
-        if (ebook.extractedText) {
-            console.log("📖 Returning cached extracted text from database.");
-            return res.json({ title: ebook.title, author: ebook.author, extractedText: ebook.extractedText });
         }
 
         // Normalize path to avoid encoding issues
@@ -141,10 +135,14 @@ router.get("/:id/extract", async (req, res) => {
         console.log("📖 Extracting text from:", filePath);
         const text = await extractTextFromEPUB(filePath);
 
-        // Save extracted text in MongoDB
-        await Ebook.findByIdAndUpdate(req.params.id, { extractedText: text });
+        // Save extracted text to a new file
+        const extractedTextFilePath = filePath.replace(/\.epub$/, "_extracted.txt");
+        await fs.promises.writeFile(extractedTextFilePath, text);
 
-        res.json({ title: ebook.title, author: ebook.author, extractedText: text });
+        ebook.extractedTextPath = extractedTextFilePath;
+        await ebook.save();
+
+        res.json({ title: ebook.title, author: ebook.author, extractedTextFilePath });
     } catch (error) {
         console.error("❌ Extraction Error:", error);
         res.status(500).json({ error: error.message });

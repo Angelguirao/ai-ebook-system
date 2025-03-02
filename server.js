@@ -28,7 +28,13 @@ app.use("/api/ebooks", ebookRoutes);
 app.get("/", (req, res) => res.send("📚 AI Ebook System API is Running!"));
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/ai-ebook-system";
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+    console.error("❌ MongoDB URI not provided. Please set MONGODB_URI environment variable.");
+    process.exit(1);
+  }
+
 
 const connectToDatabase = async () => {
     try {

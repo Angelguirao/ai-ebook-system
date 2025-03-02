@@ -9,8 +9,8 @@ const EbookSchema = new mongoose.Schema(
         fileFormat: { type: String, enum: ["pdf", "epub", "txt"], required: true }, // Book format
         language: { type: String, default: "Unknown" }, // Book language
 
-         // 📖 Extracted Text (for EPUBs)
-         extractedText: { type: String, default: "" }, // Stores extracted text
+        // 📖 Extracted Text Path (for EPUBs)
+        extractedTextPath: { type: String, default: "" }, // Path to the extracted text file
 
         // 📖 AI-Generated Summaries & Insights
         aiSummary: {
